@@ -44,6 +44,9 @@ cmake-build-*/
 # IntelliJ
 out/
 
+# And similarly with Java class files
+*.class
+
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 
