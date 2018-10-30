@@ -16,21 +16,39 @@ public class BcastReduce {
         int numItemsToTransfer = 1;
         int sourceRank = 0;
         int bufferPosition = 0;
-        int numberToPlayWith = 5;
+        
+
+        int n = 1000;
+        int width = 1 / n;
+        int sum = 0;
+
+
+    /**
+        root process only:
+        ask the user for a value n
+        broadcast the value n to all processes
+            width <- 1 / n
+        sum = 0
+        forall 1 <= i <= n (in parallel - divide the i values between processes somehow):
+            sum <- sum + 4 / (1 + (width * (i - 0.5)) ** 2)
+        mypi <- width * sum
+        sum all processes' mypi using reduce
+        print sum
+    */
 
         if (rank == sourceRank) {
-            buffer.put(bufferPosition, numberToPlayWith * 3);
+            buffer.put(bufferPosition, n);
         }
 
         MPI.COMM_WORLD.bcast(buffer, numItemsToTransfer, MPI.INT, sourceRank);
 
         int valueReceived = buffer.get(0);
 
-        int valueModified = valueReceived + 4;
+        
 
-        buffer.put(bufferPosition, valueModified);
+     
 
-        IntBuffer finalAnswer = MPI.newIntBuffer(1);
+        //IntBuffer finalAnswer = MPI.newIntBuffer(1);
         int destProcess = 0;
         MPI.COMM_WORLD.reduce(buffer, finalAnswer, numItemsToTransfer,
                               MPI.INT, MPI.SUM, destProcess);
