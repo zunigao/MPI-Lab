@@ -1,4 +1,6 @@
 // Data clustering. Implementation by Dave Musicant
+import mpi.*;
+import java.nio.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -62,6 +64,10 @@ public class Clustering {
         int rows = data.length;
         int cols = data[0].length;
 
+        double start = (rank / (double)(size)) * rows + 1;
+        double end = ((rank + 1)/(double)(size)) * rows ;
+
+
         // Initially assign all points to no cluster at all
         int[] assignments = new int[rows];
         for (int i = 0; i < rows; i++) {
@@ -89,7 +95,7 @@ public class Clustering {
             // cluster possibility.
             double largestDist = Double.MIN_VALUE;
             int furthestPoint = -1;
-            for (int i = 0; i < rows; i++) {
+            for (int i = (int) start; i < (int) end; i++) { //figure out tomorrow.
                 int closest = -1;
                 double minDist = Double.MAX_VALUE;
                 for (int j = 0; j < k; j++) {
@@ -143,7 +149,10 @@ public class Clustering {
     }
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws MPIException {
+
+        MPI.Init(args);
+
         double[][] dataset = importData();
         double[][] centers = cluster(dataset, 10);
 
