@@ -64,6 +64,9 @@ public class Clustering {
         int rows = data.length;
         int cols = data[0].length;
 
+        int size = MPI.COMM_WORLD.getSize();
+        int rank = MPI.COMM_WORLD.getRank();
+
         double start = (rank / (double)(size)) * rows + 1;
         double end = ((rank + 1)/(double)(size)) * rows ;
 
