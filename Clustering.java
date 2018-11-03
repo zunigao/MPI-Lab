@@ -115,9 +115,32 @@ public class Clustering {
                 assignments[i] = closest;
                 curError += minDist;
             }
+            
+            
+            // Here, we're reducing and summing curError,
+            // and then broadcasting it back out for everyone.
+            DoubleBuffer buffer = MPI.newDoubleBuffer(1);
+            buffer.put(0, curError);
+            DoubleBuffer finalError = MPI.newDoubleBuffer(1);
+            MPI.COMM_WORLD.reduce(buffer, finalError, 1, MPI.DOUBLE, MPI.SUM, 0);
+            if (rank == 0) {
+                curError = finalError.get(0);
+                buffer.put(0, curError);
+                MPI.COMM_WORLD.bcast(buffer, 1, MPI.DOUBLE, 0);
+                System.out.println("Avg Clustering error: "  + curError/rows);
+            }
+            curError = buffer.get(0);
+            
+            // If an empty cluster happens, we need to make sure all
+            // copies have the same largestDist and the data for that point
+            // so that when we're remaking centers, it doesn't bug out
+            buffer.put(0, largestDist);
+            DoubleBuffer largeDist = MPI.newDoubleBuffer(1);
+            MPI.COMM_WORLD.reduce(buffer, largeDist, 1, MPI.DOUBLE, MPI.MAX, 0);
 
-            System.out.println("Avg Clustering error: "  + curError/rows);
 
+
+            
             // Assign new centroids for each cluster
             int[] numPoints = new int[k];
             double[][] clusterTotal = new double[k][cols];
@@ -138,6 +161,13 @@ public class Clustering {
             for (int cluster = 0; cluster < k; cluster++) {
                 for (int j = 0; j < cols; j++) {
                     if (numPoints[cluster] > 0) {
+                        // to make this parallel, we need to
+                        // for each k
+                        //    reduce the cluster totals
+                        //    reduce numPoints
+                        //    do the division
+                        //    broadcast the new center value
+
                         centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
                     } else {
                         System.out.println("Empty cluster happened");
@@ -166,5 +196,6 @@ public class Clustering {
             }
             System.out.println();
         }
+        MPI.Finalize();
     }
 }
