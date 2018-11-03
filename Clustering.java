@@ -67,10 +67,10 @@ public class Clustering {
         int size = MPI.COMM_WORLD.getSize();
         int rank = MPI.COMM_WORLD.getRank();
 
-        int start = (rank / (size)) * rows ;
-        int end = ((rank + 1)/(size)) * rows ;
-
-
+        int start = (int)((rank / (double)(size)) * rows) ;
+        int end = (int)(((rank + 1)/(double)(size)) * rows);
+        
+        //System.out.println("rank: " + rank + " start: " + start + " end: " + end);
         // Initially assign all points to no cluster at all
         int[] assignments = new int[rows];
         for (int i = 0; i < rows; i++) {
@@ -91,6 +91,7 @@ public class Clustering {
         double curError = Double.MAX_VALUE / 2;
 
         while (curError < prevError - TOL) {
+            //System.out.println("rank " + rank + " iteration");
             prevError = curError;
             curError = 0;
 
@@ -119,19 +120,24 @@ public class Clustering {
             
             // Here, we're reducing and summing curError,
             // and then broadcasting it back out for everyone.
+            //System.out.println("rank " + rank + " curError " + curError);
             DoubleBuffer buffer = MPI.newDoubleBuffer(1);
             buffer.put(0, curError);
             DoubleBuffer finalError = MPI.newDoubleBuffer(1);
             MPI.COMM_WORLD.reduce(buffer, finalError, 1, MPI.DOUBLE, MPI.SUM, 0);
+            DoubleBuffer buffer1 = MPI.newDoubleBuffer(1);
             if (rank == 0) {
-                MPI.COMM_WORLD.bcast(finalError, 1, MPI.DOUBLE, 0);
-                System.out.println("Avg Clustering error: "  + curError/rows);
+                buffer1.put(0, finalError.get(0));
             }
-            curError = buffer.get(0);
+            MPI.COMM_WORLD.bcast(buffer1, 1, MPI.DOUBLE, 0);
+            //System.out.println("Avg Clustering error: "  + buffer1.get(0)/rows);
             
+            curError = buffer1.get(0)/rows;
+            System.out.println("rank: " + rank + " error: " + curError);
             // If an empty cluster happens, we need to make sure all
             // copies have the same largestDist and furthestPoint
             // so that when we're remaking centers, it doesn't bug out
+            buffer = MPI.newDoubleBuffer(1);
             buffer.put(0, largestDist);
             DoubleBuffer largeDist = MPI.newDoubleBuffer(1);
             MPI.COMM_WORLD.reduce(buffer, largeDist, 1, MPI.DOUBLE, MPI.MAX, 0);
@@ -165,14 +171,16 @@ public class Clustering {
             for (int cluster = 0; cluster < k; cluster++) {
                 
                 DoubleBuffer newBuff = MPI.newDoubleBuffer(1);
-                
+                buffer = MPI.newDoubleBuffer(1);
+
                 buffer.put(0, numPoints[cluster]); 
                 
                 MPI.COMM_WORLD.reduce(buffer, newBuff, 1, MPI.DOUBLE, MPI.SUM, 0);
                 if (rank == 0)
                     MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
                 numPoints[cluster] = (int)newBuff.get(0);
-                
+                if (rank==0)
+                    System.out.println("Num Points for cluster " + cluster + ": " + numPoints[cluster]);
                 for (int j = 0; j < cols; j++) {
                     if (numPoints[cluster] > 0) {
                         // to make this parallel, we need to
@@ -181,6 +189,9 @@ public class Clustering {
                         //    reduce numPoints
                         //    do the division
                         //    broadcast the new center value
+                        buffer = MPI.newDoubleBuffer(1);
+                        newBuff = MPI.newDoubleBuffer(1);
+
                         buffer.put(0, clusterTotal[cluster][j]);
                         MPI.COMM_WORLD.reduce(buffer, newBuff, 1, MPI.DOUBLE, MPI.SUM, 0);
                         if (rank == 0)
@@ -190,15 +201,15 @@ public class Clustering {
                     }
 
                     else {
-                        //if (rank == 0)
-                            //System.out.println("Empty cluster happened");
+                        if (rank == 0 && j==0)
+                            System.out.println("Empty cluster happened");
                         centers[cluster][j] = data[furthestPoint][j];
                     }
                 }
             }
 
         }
-
+        System.out.println("rank: " + rank + " done");
         return centers;
     }
 
