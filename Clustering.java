@@ -60,15 +60,15 @@ public class Clustering {
         return distance;
     }
 
-    public static double[][] cluster(double[][] data, int k) {
+    public static double[][] cluster(double[][] data, int k) throws MPIException {
         int rows = data.length;
         int cols = data[0].length;
 
         int size = MPI.COMM_WORLD.getSize();
         int rank = MPI.COMM_WORLD.getRank();
 
-        double start = (rank / (double)(size)) * rows + 1;
-        double end = ((rank + 1)/(double)(size)) * rows ;
+        int start = (rank / (size)) * rows ;
+        int end = ((rank + 1)/(size)) * rows ;
 
 
         // Initially assign all points to no cluster at all
@@ -98,7 +98,7 @@ public class Clustering {
             // cluster possibility.
             double largestDist = Double.MIN_VALUE;
             int furthestPoint = -1;
-            for (int i = (int) start; i <= (int) end; i++) { //figure out tomorrow.
+            for (int i = start; i < end; i++) { //figure out tomorrow.
                 int closest = -1;
                 double minDist = Double.MAX_VALUE;
                 for (int j = 0; j < k; j++) {
@@ -141,7 +141,7 @@ public class Clustering {
                 buffer.put(0, furthestPoint);
             if (rank == 0)
                 MPI.COMM_WORLD.bcast(buffer, 1, MPI.DOUBLE, 0);
-            furthestPoint = buffer.get(0);
+            furthestPoint = (int)buffer.get(0);
 
 
             
@@ -150,7 +150,7 @@ public class Clustering {
             double[][] clusterTotal = new double[k][cols];
 
             // Aggregate each cluster
-            for (int i = 0; i < rows; i++) {
+            for (int i = start; i < end; i++) {
                 int cluster = assignments[i];
                 numPoints[cluster]++;
                 for (int j = 0; j < cols; j++) {
@@ -171,10 +171,10 @@ public class Clustering {
                 MPI.COMM_WORLD.reduce(buffer, newBuff, 1, MPI.DOUBLE, MPI.SUM, 0);
                 if (rank == 0)
                     MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
-                numPoints[cluster] = newBuff.get(0);
+                numPoints[cluster] = (int)newBuff.get(0);
                 
                 for (int j = 0; j < cols; j++) {
-                    if (numPoints[cluster] > 0) 
+                    if (numPoints[cluster] > 0) {
                         // to make this parallel, we need to
                         // for each k
                         //    reduce the cluster totals
@@ -187,11 +187,11 @@ public class Clustering {
                             MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
                         clusterTotal[cluster][j] = newBuff.get(0);
                         centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
-                    
+                    }
 
                     else {
-                        if (rank == 0)
-                            System.out.println("Empty cluster happened");
+                        //if (rank == 0)
+                            //System.out.println("Empty cluster happened");
                         centers[cluster][j] = data[furthestPoint][j];
                     }
                 }
@@ -209,14 +209,16 @@ public class Clustering {
 
         double[][] dataset = importData();
         double[][] centers = cluster(dataset, 10);
-
-        System.out.println("Centers are: ");
-        for (double[] row : centers) {
-            for (double value : row) {
-                System.out.print(value + " ");
+        if (MPI.COMM_WORLD.getRank() == 0){
+            System.out.println("Centers are: ");
+            for (double[] row : centers) {
+                for (double value : row) {
+                    System.out.print(value + " ");
+                }
+                System.out.println();
             }
-            System.out.println();
         }
+
         MPI.Finalize();
     }
 }
