@@ -98,7 +98,7 @@ public class Clustering {
             // cluster possibility.
             double largestDist = Double.MIN_VALUE;
             int furthestPoint = -1;
-            for (int i = (int) start; i < (int) end; i++) { //figure out tomorrow.
+            for (int i = (int) start; i <= (int) end; i++) { //figure out tomorrow.
                 int closest = -1;
                 double minDist = Double.MAX_VALUE;
                 for (int j = 0; j < k; j++) {
@@ -130,7 +130,7 @@ public class Clustering {
             curError = buffer.get(0);
             
             // If an empty cluster happens, we need to make sure all
-            // copies have the same largestDist and the data for that point
+            // copies have the same largestDist and furthestPoint
             // so that when we're remaking centers, it doesn't bug out
             buffer.put(0, largestDist);
             DoubleBuffer largeDist = MPI.newDoubleBuffer(1);
@@ -174,18 +174,24 @@ public class Clustering {
                 numPoints[cluster] = newBuff.get(0);
                 
                 for (int j = 0; j < cols; j++) {
-                    //(numPoints[cluster] > 0) 
+                    if (numPoints[cluster] > 0) 
                         // to make this parallel, we need to
                         // for each k
                         //    reduce the cluster totals
                         //    reduce numPoints
                         //    do the division
                         //    broadcast the new center value
-                        //centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
+                        buffer.put(0, clusterTotal[cluster][j]);
+                        MPI.COMM_WORLD.reduce(buffer, newBuff, 1, MPI.DOUBLE, MPI.SUM, 0);
+                        if (rank == 0)
+                            MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
+                        clusterTotal[cluster][j] = newBuff.get(0);
+                        centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
                     
 
                     else {
-                        System.out.println("Empty cluster happened");
+                        if (rank == 0)
+                            System.out.println("Empty cluster happened");
                         centers[cluster][j] = data[furthestPoint][j];
                     }
                 }
