@@ -124,9 +124,7 @@ public class Clustering {
             DoubleBuffer finalError = MPI.newDoubleBuffer(1);
             MPI.COMM_WORLD.reduce(buffer, finalError, 1, MPI.DOUBLE, MPI.SUM, 0);
             if (rank == 0) {
-                curError = finalError.get(0);
-                buffer.put(0, curError);
-                MPI.COMM_WORLD.bcast(buffer, 1, MPI.DOUBLE, 0);
+                MPI.COMM_WORLD.bcast(finalError, 1, MPI.DOUBLE, 0);
                 System.out.println("Avg Clustering error: "  + curError/rows);
             }
             curError = buffer.get(0);
@@ -137,7 +135,13 @@ public class Clustering {
             buffer.put(0, largestDist);
             DoubleBuffer largeDist = MPI.newDoubleBuffer(1);
             MPI.COMM_WORLD.reduce(buffer, largeDist, 1, MPI.DOUBLE, MPI.MAX, 0);
-
+            if (rank == 0)
+                MPI.COMM_WORLD.bcast(largeDist, 1, MPI.DOUBLE, 0);
+            if (largeDist.get(0) == largestDist)
+                buffer.put(0, furthestPoint);
+            if (rank == 0)
+                MPI.COMM_WORLD.bcast(buffer, 1, MPI.DOUBLE, 0);
+            furthestPoint = buffer.get(0);
 
 
             
@@ -159,17 +163,28 @@ public class Clustering {
             // dataset that matches the cluster number. This is not a great strategy, but good enough
             // and the code is short.
             for (int cluster = 0; cluster < k; cluster++) {
+                
+                DoubleBuffer newBuff = MPI.newDoubleBuffer(1);
+                
+                buffer.put(0, numPoints[cluster]); 
+                
+                MPI.COMM_WORLD.reduce(buffer, newBuff, 1, MPI.DOUBLE, MPI.SUM, 0);
+                if (rank == 0)
+                    MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
+                numPoints[cluster] = newBuff.get(0);
+                
                 for (int j = 0; j < cols; j++) {
-                    if (numPoints[cluster] > 0) {
+                    //(numPoints[cluster] > 0) 
                         // to make this parallel, we need to
                         // for each k
                         //    reduce the cluster totals
                         //    reduce numPoints
                         //    do the division
                         //    broadcast the new center value
+                        //centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
+                    
 
-                        centers[cluster][j] = clusterTotal[cluster][j] / numPoints[cluster];
-                    } else {
+                    else {
                         System.out.println("Empty cluster happened");
                         centers[cluster][j] = data[furthestPoint][j];
                     }
