@@ -132,8 +132,8 @@ public class Clustering {
             MPI.COMM_WORLD.bcast(buffer1, 1, MPI.DOUBLE, 0);
             //System.out.println("Avg Clustering error: "  + buffer1.get(0)/rows);
             
-            curError = buffer1.get(0)/rows;
-            System.out.println("rank: " + rank + " error: " + curError);
+            curError = buffer1.get(0);
+            System.out.println("rank: " + rank + " error: " + curError/rows);
             // If an empty cluster happens, we need to make sure all
             // copies have the same largestDist and furthestPoint
             // so that when we're remaking centers, it doesn't bug out
@@ -179,8 +179,8 @@ public class Clustering {
                 if (rank == 0)
                     MPI.COMM_WORLD.bcast(newBuff, 1, MPI.DOUBLE, 0);
                 numPoints[cluster] = (int)newBuff.get(0);
-                if (rank==0)
-                    System.out.println("Num Points for cluster " + cluster + ": " + numPoints[cluster]);
+                //if (rank==0)
+                    //System.out.println("Num Points for cluster " + cluster + ": " + numPoints[cluster]);
                 for (int j = 0; j < cols; j++) {
                     if (numPoints[cluster] > 0) {
                         // to make this parallel, we need to
