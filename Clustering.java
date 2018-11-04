@@ -134,6 +134,7 @@ public class Clustering {
             
             curError = buffer1.get(0);
             System.out.println("rank: " + rank + " error: " + curError/rows);
+            
             // If an empty cluster happens, we need to make sure all
             // copies have the same largestDist and furthestPoint
             // so that when we're remaking centers, it doesn't bug out
